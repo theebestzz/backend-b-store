@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const upload = require("../middlewares/upload");
+const { upload, uploadToBunny } = require("../middlewares/upload");
 
 const {
   getSettings,
@@ -11,10 +11,8 @@ const {
 // Ayarları getir
 router.get("/", getSettings);
 
-// Ayarları oluştur
-router.post("/", upload.single("logo"), createSettings);
+router.post("/", upload.single("logo"), uploadToBunny, createSettings);
 
-// Ayarları güncelle (logo ile)
-router.put("/", upload.single("logo"), updateSettings);
+router.put("/", upload.single("logo"), uploadToBunny, updateSettings);
 
 module.exports = router;

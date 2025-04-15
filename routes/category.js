@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const upload = require("../middlewares/upload");
+const { upload, uploadToBunny } = require("../middlewares/upload");
 
 const {
   createCategory,
@@ -15,14 +15,14 @@ const {
 router.get("/", getCategories);
 
 // Resim yükleme özelliği ile kategori oluşturma
-router.post("/", upload.single("image"), createCategory);
+router.post("/", upload.single("image"), uploadToBunny, createCategory);
 
 router.get("/:id", getCategoryById);
 
 router.get("/slug/:slug", getCategoryBySlug);
 
 // Resim yükleme özelliği ile kategori güncelleme
-router.put("/:id", upload.single("image"), updateCategory);
+router.put("/:id", upload.single("image"), uploadToBunny, updateCategory);
 
 router.delete("/:id", deleteCategory);
 

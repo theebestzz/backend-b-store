@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const upload = require("../middlewares/upload");
+const { upload, uploadToBunny } = require("../middlewares/upload");
 
 const {
   createProduct,
@@ -18,9 +18,9 @@ router.get("/:id", getProductById);
 
 router.get("/slug/:slug", getProductBySlug);
 
-router.post("/", upload.array("images", 5), createProduct);
+router.post("/", upload.array("images", 5), uploadToBunny, createProduct);
 
-router.put("/:id", upload.array("images", 5), updateProduct);
+router.put("/:id", upload.array("images", 5), uploadToBunny, updateProduct);
 
 router.delete("/:id", deleteProduct);
 

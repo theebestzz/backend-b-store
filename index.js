@@ -14,7 +14,7 @@ const settingsRoutes = require("./routes/settings");
 connectDB();
 
 const corsOptions = {
-  origin: "https://bulutcanta.com",
+  origin: ["https://bulutcanta.com", "http://localhost:3000"],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,

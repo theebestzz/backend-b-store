@@ -3,6 +3,10 @@ const slugify = require("slugify");
 
 const fs = require("fs");
 const path = require("path");
+const axios = require("axios");
+
+const BUNNY_API_KEY = process.env.BUNNY_API_KEY;
+const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE_NAME;
 
 async function getProducts(req, res) {
   try {
@@ -195,16 +199,19 @@ async function deleteProduct(req, res) {
       return res.status(404).json({ message: "Ürün bulunamadı" });
     }
 
-    // Ürüne ait resimleri sil
+    // BunnyCDN'deki resimleri sil
     if (product.images && product.images.length > 0) {
-      product.images.forEach((filename) => {
-        const filePath = path.join("/var/www/cdn/uploads/", filename);
-        fs.unlink(filePath, (err) => {
-          if (err) {
-            console.error("Resim silinirken hata oluştu:", err.message);
-          }
-        });
-      });
+      for (const filename of product.images) {
+        try {
+          await axios.delete(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${filename}`, {
+            headers: {
+              AccessKey: BUNNY_API_KEY,
+            },
+          });
+        } catch (err) {
+          console.error(`BunnyCDN silme hatası [${filename}]:`, err.message);
+        }
+      }
     }
 
     res.status(200).json({ message: "Ürün ve resimleri silindi", product });

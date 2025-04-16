@@ -2,6 +2,10 @@ const Category = require("../models/category");
 const slugify = require("slugify");
 const fs = require("fs");
 const path = require("path");
+const axios = require("axios");
+
+const BUNNY_API_KEY = process.env.BUNNY_API_KEY;
+const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE_NAME;
 
 async function getCategories(req, res) {
   try {
@@ -158,23 +162,24 @@ async function deleteCategory(req, res) {
       return res.status(404).json({ message: "Kategori bulunamadı" });
     }
 
-    // Kategori resmini silme (eğer varsa ve URL değilse)
-    if (category.image && !category.image.startsWith("http")) {
-      const imagePath = path.join("/var/www/cdn/uploads/", category.image);
-      fs.unlink(imagePath, (err) => {
-        if (err) {
-          console.error("Kategori resmi silinirken hata:", err.message);
-        }
-      });
+    // BunnyCDN'den resmi sil
+    if (category.image) {
+      try {
+        await axios.delete(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${category.image}`, {
+          headers: {
+            AccessKey: BUNNY_API_KEY,
+          },
+        });
+      } catch (err) {
+        console.error("BunnyCDN resim silme hatası:", err.message);
+      }
     }
 
     await Category.findByIdAndDelete(id);
 
-    res.status(200).json({ message: "Kategori silindi", category });
+    res.status(200).json({ message: "Kategori ve resmi silindi", category });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Kategori silinemedi", error: error.message });
+    res.status(500).json({ message: "Kategori silinemedi", error: error.message });
   }
 }
 

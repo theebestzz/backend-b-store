@@ -1,6 +1,10 @@
 const Settings = require("../models/settings");
 const fs = require("fs");
 const path = require("path");
+const axios = require("axios");
+
+const BUNNY_API_KEY = process.env.BUNNY_API_KEY;
+const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE_NAME;
 
 // Ayarları getir
 async function getSettings(req, res) {
@@ -83,7 +87,6 @@ async function createSettings(req, res) {
 // Ayarları güncelle
 async function updateSettings(req, res) {
   try {
-    // Form verilerini alalım
     const {
       name,
       adres,
@@ -93,56 +96,57 @@ async function updateSettings(req, res) {
       instagram,
       facebook,
       twitter,
-      logo, // Logo URL için
+      logo, // sadece string olarak gelen logo
     } = req.body;
 
-    // Mevcut ayarları bulalım, yoksa yeni oluşturalım
     let settings = await Settings.findOne();
     if (!settings) {
       settings = new Settings();
     }
 
-    // Eğer yeni logo yüklendiyse (dosya olarak)
-    if (req.file) {
-      // Eski logoyu silelim (varsa ve dosya ise)
-      if (settings.logo && settings.logo.startsWith("http") === false) {
-        const oldLogoPath = path.join("/var/www/cdn/uploads/", settings.logo);
-        fs.unlink(oldLogoPath, (err) => {
-          if (err) {
-            console.error("Eski logo silinirken hata:", err.message);
-          }
-        });
-      }
-
-      // Yeni logo adını kaydedelim
-      settings.logo = req.file.filename;
-    }
-    // Eğer logo parametresi tanımlıysa (empty olsa bile)
-    else if (logo !== undefined) {
-      // Eğer logo boş string ise (silme işareti)
-      if (logo === "") {
-        // Eski logoyu silelim (varsa ve dosya ise)
-        if (settings.logo && settings.logo.startsWith("http") === false) {
-          try {
-            const oldLogoPath = path.join(
-              "/var/www/cdn/uploads/",
-              settings.logo
-            );
-            if (fs.existsSync(oldLogoPath)) {
-              fs.unlinkSync(oldLogoPath); // Senkron silme işlemi
-            } else {
-            }
-          } catch (err) {
-            console.error("Logo silinirken hata:", err.message);
-          }
+    // 🟡 1. Yeni logo yüklendiyse eski logoyu BunnyCDN'den sil
+    if (req.uploadedFilenames) {
+      // Eski logo sil
+      if (settings.logo) {
+        try {
+          await axios.delete(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${settings.logo}`, {
+            headers: {
+              AccessKey: BUNNY_API_KEY,
+            },
+          });
+          console.log("Eski logo silindi:", settings.logo);
+        } catch (err) {
+          console.error("Eski logo silinemedi:", err.message);
         }
-        settings.logo = ""; // Logo alanını boşalt
-      } else {
-        settings.logo = logo;
       }
+
+      // Yeni logo adını ayarla
+      settings.logo = req.uploadedFilenames;
     }
 
-    // Diğer alanları güncelleyelim
+    // 🟡 2. Logo silinmek istenirse (logo: "")
+    else if (logo === "") {
+      if (settings.logo) {
+        try {
+          await axios.delete(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${settings.logo}`, {
+            headers: {
+              AccessKey: BUNNY_API_KEY,
+            },
+          });
+          console.log("Logo silindi:", settings.logo);
+        } catch (err) {
+          console.error("Logo silme hatası:", err.message);
+        }
+      }
+      settings.logo = "";
+    }
+
+    // 🟡 3. Logo istenirse dışarıdan (string ile URL ya da dosya adı) verilebilir
+    else if (logo !== undefined) {
+      settings.logo = logo;
+    }
+
+    // Diğer alanlar
     settings.name = name || settings.name;
     settings.adres = adres || settings.adres;
     settings.iletisim = iletisim || settings.iletisim;
@@ -154,13 +158,9 @@ async function updateSettings(req, res) {
 
     await settings.save();
 
-    res
-      .status(200)
-      .json({ message: "Ayarlar başarıyla güncellendi", settings });
+    res.status(200).json({ message: "Ayarlar başarıyla güncellendi", settings });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Ayarlar güncellenemedi", error: error.message });
+    res.status(500).json({ message: "Ayarlar güncellenemedi", error: error.message });
   }
 }
 

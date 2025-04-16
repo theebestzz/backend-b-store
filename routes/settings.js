@@ -8,7 +8,6 @@ const {
   createSettings,
 } = require("../controllers/settings");
 
-// Ayarları getir
 router.get("/", getSettings);
 
 router.post("/", upload.single("logo"), uploadToBunny, createSettings);

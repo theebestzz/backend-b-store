@@ -2,12 +2,10 @@ const multer = require("multer");
 const path = require("path");
 const axios = require("axios");
 
-// BunnyCDN Ayarları
 const BUNNY_API_KEY = process.env.BUNNY_API_KEY;
 const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE_NAME;
 const BUNNY_UPLOAD_URL = `https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}`;
 
-// Bellekte tut
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {

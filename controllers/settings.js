@@ -1,18 +1,13 @@
 const Settings = require("../models/settings");
-const fs = require("fs");
-const path = require("path");
 const axios = require("axios");
 
 const BUNNY_API_KEY = process.env.BUNNY_API_KEY;
 const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE_NAME;
 
-// Ayarları getir
 async function getSettings(req, res) {
   try {
-    // Tek bir ayarlar kaydı olacağı için ilk kaydı getiriyoruz
     let settings = await Settings.findOne();
 
-    // Eğer ayarlar kaydı yoksa, yeni bir tane oluşturalım
     if (!settings) {
       settings = new Settings();
       await settings.save();
@@ -26,10 +21,8 @@ async function getSettings(req, res) {
   }
 }
 
-// Ayarları oluştur (ilk kez)
 async function createSettings(req, res) {
   try {
-    // Önce var mı diye kontrol edelim
     const existingSettings = await Settings.findOne();
 
     if (existingSettings) {
@@ -40,22 +33,21 @@ async function createSettings(req, res) {
 
     const {
       name,
-      adres,
+      adress,
       iletisim,
       email,
-      calisma_saatleri,
+      work_hours,
       instagram,
       facebook,
       twitter,
-      logo, // Logo URL için
+      logo,
+      whatsapp
     } = req.body;
 
     let logoFile = "";
-    // Dosya olarak yüklenen logo varsa
     if (req.file) {
       logoFile = req.file.filename;
     }
-    // URL olarak gelen logo varsa
     else if (logo) {
       logoFile = logo;
     }
@@ -63,13 +55,14 @@ async function createSettings(req, res) {
     const settings = new Settings({
       logo: logoFile,
       name,
-      adres,
+      adress,
       iletisim,
       email,
-      calisma_saatleri,
+      work_hours,
       instagram,
       facebook,
       twitter,
+      whatsapp
     });
 
     await settings.save();
@@ -84,19 +77,19 @@ async function createSettings(req, res) {
   }
 }
 
-// Ayarları güncelle
 async function updateSettings(req, res) {
   try {
     const {
       name,
-      adres,
+      adress,
       iletisim,
       email,
-      calisma_saatleri,
+      work_hours,
       instagram,
       facebook,
       twitter,
-      logo, // sadece string olarak gelen logo
+      logo,
+      whatsapp
     } = req.body;
 
     let settings = await Settings.findOne();
@@ -104,9 +97,7 @@ async function updateSettings(req, res) {
       settings = new Settings();
     }
 
-    // 🟡 1. Yeni logo yüklendiyse eski logoyu BunnyCDN'den sil
     if (req.uploadedFilenames) {
-      // Eski logo sil
       if (settings.logo) {
         try {
           await axios.delete(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${settings.logo}`, {
@@ -114,17 +105,14 @@ async function updateSettings(req, res) {
               AccessKey: BUNNY_API_KEY,
             },
           });
-          console.log("Eski logo silindi:", settings.logo);
         } catch (err) {
           console.error("Eski logo silinemedi:", err.message);
         }
       }
 
-      // Yeni logo adını ayarla
       settings.logo = req.uploadedFilenames;
     }
 
-    // 🟡 2. Logo silinmek istenirse (logo: "")
     else if (logo === "") {
       if (settings.logo) {
         try {
@@ -133,7 +121,6 @@ async function updateSettings(req, res) {
               AccessKey: BUNNY_API_KEY,
             },
           });
-          console.log("Logo silindi:", settings.logo);
         } catch (err) {
           console.error("Logo silme hatası:", err.message);
         }
@@ -141,20 +128,19 @@ async function updateSettings(req, res) {
       settings.logo = "";
     }
 
-    // 🟡 3. Logo istenirse dışarıdan (string ile URL ya da dosya adı) verilebilir
     else if (logo !== undefined) {
       settings.logo = logo;
     }
 
-    // Diğer alanlar
     settings.name = name || settings.name;
-    settings.adres = adres || settings.adres;
+    settings.adress = adress || settings.adress;
     settings.iletisim = iletisim || settings.iletisim;
     settings.email = email || settings.email;
-    settings.calisma_saatleri = calisma_saatleri || settings.calisma_saatleri;
+    settings.work_hours = work_hours || settings.work_hours;
     settings.instagram = instagram || settings.instagram;
     settings.facebook = facebook || settings.facebook;
     settings.twitter = twitter || settings.twitter;
+    settings.whatsapp = whatsapp || settings.whatsapp;
 
     await settings.save();
 

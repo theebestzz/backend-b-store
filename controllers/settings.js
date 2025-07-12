@@ -1,14 +1,13 @@
 const Settings = require("../models/settings");
-const fs = require("fs");
-const path = require("path");
+const axios = require("axios");
 
-// Ayarları getir
+const BUNNY_API_KEY = process.env.BUNNY_API_KEY;
+const BUNNY_STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE_NAME;
+
 async function getSettings(req, res) {
   try {
-    // Tek bir ayarlar kaydı olacağı için ilk kaydı getiriyoruz
     let settings = await Settings.findOne();
 
-    // Eğer ayarlar kaydı yoksa, yeni bir tane oluşturalım
     if (!settings) {
       settings = new Settings();
       await settings.save();
@@ -22,10 +21,8 @@ async function getSettings(req, res) {
   }
 }
 
-// Ayarları oluştur (ilk kez)
 async function createSettings(req, res) {
   try {
-    // Önce var mı diye kontrol edelim
     const existingSettings = await Settings.findOne();
 
     if (existingSettings) {
@@ -36,22 +33,21 @@ async function createSettings(req, res) {
 
     const {
       name,
-      adres,
+      adress,
       iletisim,
       email,
-      calisma_saatleri,
+      work_hours,
       instagram,
       facebook,
       twitter,
-      logo, // Logo URL için
+      logo,
+      whatsapp
     } = req.body;
 
     let logoFile = "";
-    // Dosya olarak yüklenen logo varsa
     if (req.file) {
       logoFile = req.file.filename;
     }
-    // URL olarak gelen logo varsa
     else if (logo) {
       logoFile = logo;
     }
@@ -59,13 +55,14 @@ async function createSettings(req, res) {
     const settings = new Settings({
       logo: logoFile,
       name,
-      adres,
+      adress,
       iletisim,
       email,
-      calisma_saatleri,
+      work_hours,
       instagram,
       facebook,
       twitter,
+      whatsapp
     });
 
     await settings.save();
@@ -80,87 +77,76 @@ async function createSettings(req, res) {
   }
 }
 
-// Ayarları güncelle
 async function updateSettings(req, res) {
   try {
-    // Form verilerini alalım
     const {
       name,
-      adres,
+      adress,
       iletisim,
       email,
-      calisma_saatleri,
+      work_hours,
       instagram,
       facebook,
       twitter,
-      logo, // Logo URL için
+      logo,
+      whatsapp
     } = req.body;
 
-    // Mevcut ayarları bulalım, yoksa yeni oluşturalım
     let settings = await Settings.findOne();
     if (!settings) {
       settings = new Settings();
     }
 
-    // Eğer yeni logo yüklendiyse (dosya olarak)
-    if (req.file) {
-      // Eski logoyu silelim (varsa ve dosya ise)
-      if (settings.logo && settings.logo.startsWith("http") === false) {
-        const oldLogoPath = path.join("/var/www/cdn/uploads/", settings.logo);
-        fs.unlink(oldLogoPath, (err) => {
-          if (err) {
-            console.error("Eski logo silinirken hata:", err.message);
-          }
-        });
-      }
-
-      // Yeni logo adını kaydedelim
-      settings.logo = req.file.filename;
-    }
-    // Eğer logo parametresi tanımlıysa (empty olsa bile)
-    else if (logo !== undefined) {
-      // Eğer logo boş string ise (silme işareti)
-      if (logo === "") {
-        // Eski logoyu silelim (varsa ve dosya ise)
-        if (settings.logo && settings.logo.startsWith("http") === false) {
-          try {
-            const oldLogoPath = path.join(
-              "/var/www/cdn/uploads/",
-              settings.logo
-            );
-            if (fs.existsSync(oldLogoPath)) {
-              fs.unlinkSync(oldLogoPath); // Senkron silme işlemi
-            } else {
-            }
-          } catch (err) {
-            console.error("Logo silinirken hata:", err.message);
-          }
+    if (req.uploadedFilenames) {
+      if (settings.logo) {
+        try {
+          await axios.delete(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${settings.logo}`, {
+            headers: {
+              AccessKey: BUNNY_API_KEY,
+            },
+          });
+        } catch (err) {
+          console.error("Eski logo silinemedi:", err.message);
         }
-        settings.logo = ""; // Logo alanını boşalt
-      } else {
-        settings.logo = logo;
       }
+
+      settings.logo = req.uploadedFilenames;
     }
 
-    // Diğer alanları güncelleyelim
+    else if (logo === "") {
+      if (settings.logo) {
+        try {
+          await axios.delete(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${settings.logo}`, {
+            headers: {
+              AccessKey: BUNNY_API_KEY,
+            },
+          });
+        } catch (err) {
+          console.error("Logo silme hatası:", err.message);
+        }
+      }
+      settings.logo = "";
+    }
+
+    else if (logo !== undefined) {
+      settings.logo = logo;
+    }
+
     settings.name = name || settings.name;
-    settings.adres = adres || settings.adres;
+    settings.adress = adress || settings.adress;
     settings.iletisim = iletisim || settings.iletisim;
     settings.email = email || settings.email;
-    settings.calisma_saatleri = calisma_saatleri || settings.calisma_saatleri;
+    settings.work_hours = work_hours || settings.work_hours;
     settings.instagram = instagram || settings.instagram;
     settings.facebook = facebook || settings.facebook;
     settings.twitter = twitter || settings.twitter;
+    settings.whatsapp = whatsapp || settings.whatsapp;
 
     await settings.save();
 
-    res
-      .status(200)
-      .json({ message: "Ayarlar başarıyla güncellendi", settings });
+    res.status(200).json({ message: "Ayarlar başarıyla güncellendi", settings });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Ayarlar güncellenemedi", error: error.message });
+    res.status(500).json({ message: "Ayarlar güncellenemedi", error: error.message });
   }
 }
 

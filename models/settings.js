@@ -8,9 +8,9 @@ const settingsSchema = new mongoose.Schema(
     },
     name: {
       type: String,
-      default: "Bulut Çanta",
+      default: "",
     },
-    adres: {
+    adress: {
       type: String,
       default: "",
     },
@@ -18,11 +18,15 @@ const settingsSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    whatsapp: {
+      type: String,
+      default: "",
+    },
     email: {
       type: String,
       default: "",
     },
-    calisma_saatleri: {
+    work_hours: {
       type: String,
       default: "",
     },
